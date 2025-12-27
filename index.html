@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IncidentReasoner - SRE Agent with Toto-Powered Causal Reasoning</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-primary: #0a0f0d;
+            --bg-secondary: #111916;
+            --bg-card: #182320;
+            --bg-elevated: #1f2d29;
+            --border-color: #2d4a42;
+            --text-primary: #e8f5f0;
+            --text-secondary: #94b8ad;
+            --text-muted: #5d8073;
+            --accent-green: #00d68f;
+            --accent-teal: #00c9a7;
+            --accent-cyan: #00b4d8;
+            --accent-gradient: linear-gradient(135deg, #00d68f 0%, #00c9a7 50%, #00b4d8 100%);
+            --success: #00d68f;
+            --warning: #ffc107;
+            --error: #ff6b6b;
+            --info: #00b4d8;
+            --hypothesis-color: #a78bfa;
+            --evidence-color: #34d399;
+            --reasoning-color: #fbbf24;
+        }
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        .bg-effects {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .circuit-pattern {
+            position: absolute;
+            width: 100%; height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0v20M30 40v20M0 30h20M40 30h60' stroke='%232d4a42' stroke-width='0.5' fill='none'/%3E%3Ccircle cx='30' cy='30' r='3' fill='%232d4a42' fill-opacity='0.3'/%3E%3C/svg%3E");
+            opacity: 0.4;
+        }
+        .glow-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(100px);
+            opacity: 0.3;
+        }
+        .orb-1 { width: 500px; height: 500px; background: var(--accent-green); top: -150px; left: -150px; }
+        .orb-2 { width: 400px; height: 400px; background: var(--accent-cyan); bottom: -100px; right: -100px; }
+        
+        .container { position: relative; z-index: 1; max-width: 1500px; margin: 0 auto; padding: 2rem; }
+        
+        header { text-align: center; margin-bottom: 2.5rem; }
+        .logo-container {
+            display: inline-flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        .logo-icon {
+            width: 52px; height: 52px;
+            background: var(--accent-gradient);
+            border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem;
+            box-shadow: 0 8px 30px rgba(0, 214, 143, 0.3);
+            animation: float 3s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+        .logo-text {
+            font-size: 1.75rem;
+            font-weight: 700;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .tagline {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            max-width: 650px;
+            margin: 0.5rem auto 1rem;
+        }
+        .powered-by {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 1rem;
+            background: rgba(0, 214, 143, 0.1);
+            border: 1px solid rgba(0, 214, 143, 0.3);
+            border-radius: 25px;
+            font-size: 0.8rem;
+            color: var(--accent-green);
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 0.25rem;
+            background: var(--bg-secondary);
+            padding: 0.4rem;
+            border-radius: 14px;
+            margin-bottom: 2rem;
+            border: 1px solid var(--border-color);
+            width: fit-content;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .tab {
+            padding: 0.75rem 1.5rem;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-family: inherit;
+            font-weight: 500;
+            border-radius: 10px;
+            transition: all 0.25s ease;
+        }
+        .tab:hover { color: var(--text-primary); background: rgba(255, 255, 255, 0.05); }
+        .tab.active {
+            color: #0a0f0d;
+            background: var(--accent-gradient);
+            font-weight: 600;
+        }
+        .tab-content { display: none; animation: fadeUp 0.4s ease; }
+        .tab-content.active { display: block; }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+        
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 2px;
+            background: var(--accent-gradient);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .card:hover::before { opacity: 1; }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.25rem;
+        }
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn {
+            padding: 0.8rem 1.75rem;
+            background: var(--accent-gradient);
+            border: none;
+            border-radius: 10px;
+            color: #0a0f0d;
+            font-family: inherit;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(0, 214, 143, 0.35);
+        }
+        .btn-secondary {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+        .btn-secondary:hover { border-color: var(--accent-green); }
+        .btn-danger {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a5a);
+            color: white;
+        }
+        
+        /* Incident Simulation */
+        .incident-selector {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .incident-option {
+            padding: 0.75rem 1.25rem;
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            min-width: 150px;
+        }
+        .incident-option:hover { border-color: var(--accent-green); }
+        .incident-option.active {
+            border-color: var(--accent-green);
+            background: rgba(0, 214, 143, 0.1);
+        }
+        .incident-option.active::after {
+            content: '✓';
+            margin-left: 0.5rem;
+            color: var(--accent-green);
+        }
+        .incident-icon { font-size: 1.5rem; margin-bottom: 0.25rem; }
+        .incident-name { font-weight: 600; font-size: 0.9rem; }
+        .incident-desc { font-size: 0.75rem; color: var(--text-secondary); }
+        
+        /* Agent Reasoning */
+        .reasoning-container {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 1.25rem;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .reasoning-step {
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            border-radius: 10px;
+            border-left: 3px solid var(--border-color);
+            background: var(--bg-card);
+            animation: stepIn 0.4s ease;
+        }
+        @keyframes stepIn {
+            from { opacity: 0; transform: translateX(-15px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .step-thought { border-left-color: var(--reasoning-color); }
+        .step-action { border-left-color: var(--info); }
+        .step-observation { border-left-color: var(--evidence-color); }
+        .step-hypothesis { border-left-color: var(--hypothesis-color); }
+        .step-conclusion { border-left-color: var(--success); background: rgba(0, 214, 143, 0.1); }
+        
+        .step-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+        .step-badge {
+            padding: 0.2rem 0.6rem;
+            border-radius: 5px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        .badge-thought { background: rgba(251, 191, 36, 0.2); color: var(--reasoning-color); }
+        .badge-action { background: rgba(0, 180, 216, 0.2); color: var(--info); }
+        .badge-observation { background: rgba(52, 211, 153, 0.2); color: var(--evidence-color); }
+        .badge-hypothesis { background: rgba(167, 139, 250, 0.2); color: var(--hypothesis-color); }
+        .badge-conclusion { background: rgba(0, 214, 143, 0.2); color: var(--success); }
+        
+        .step-content {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+        .step-content code {
+            background: var(--bg-primary);
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.8rem;
+            color: var(--accent-green);
+        }
+        
+        /* Toto Predictions */
+        .toto-panel {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 1.25rem;
+        }
+        .toto-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+        .toto-badge {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+            padding: 0.2rem 0.6rem;
+            border-radius: 5px;
+            font-size: 0.7rem;
+        }
+        .metric-comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .metric-box {
+            padding: 1rem;
+            background: var(--bg-card);
+            border-radius: 10px;
+            text-align: center;
+        }
+        .metric-label { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem; }
+        .metric-value { font-size: 1.5rem; font-weight: 700; }
+        .expected { color: var(--accent-green); }
+        .actual { color: var(--error); }
+        .anomaly-score {
+            text-align: center;
+            padding: 1rem;
+            background: rgba(255, 107, 107, 0.1);
+            border: 1px solid rgba(255, 107, 107, 0.3);
+            border-radius: 10px;
+            margin-top: 1rem;
+        }
+        
+        /* Causal Graph */
+        .causal-graph {
+            background: var(--bg-primary);
+            border-radius: 12px;
+            height: 280px;
+            position: relative;
+            overflow: hidden;
+        }
+        .service-node {
+            position: absolute;
+            padding: 0.6rem 1rem;
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .service-node:hover { transform: scale(1.1); z-index: 10; }
+        .service-node.healthy { border-color: var(--success); }
+        .service-node.degraded { border-color: var(--warning); }
+        .service-node.failed { border-color: var(--error); background: rgba(255, 107, 107, 0.1); }
+        .service-node.root-cause {
+            border-color: var(--error);
+            background: rgba(255, 107, 107, 0.2);
+            box-shadow: 0 0 20px rgba(255, 107, 107, 0.4);
+            animation: rootPulse 1.5s infinite;
+        }
+        @keyframes rootPulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(255, 107, 107, 0.4); }
+            50% { box-shadow: 0 0 35px rgba(255, 107, 107, 0.6); }
+        }
+        
+        /* Metrics Cards */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .metric-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.25rem;
+            text-align: center;
+        }
+        .metric-card-value {
+            font-size: 2rem;
+            font-weight: 700;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .metric-card-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+        
+        /* Incident Report */
+        .report-section {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+        }
+        .report-title {
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .timeline-item {
+            display: flex;
+            gap: 1rem;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .timeline-item:last-child { border-bottom: none; }
+        .timeline-time {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            min-width: 80px;
+        }
+        .timeline-event { font-size: 0.9rem; }
+        
+        /* Simulation Status */
+        .sim-status {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 1rem;
+            background: var(--bg-secondary);
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+        }
+        .sim-dot {
+            width: 12px; height: 12px;
+            border-radius: 50%;
+            background: var(--text-muted);
+        }
+        .sim-dot.running {
+            background: var(--success);
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(0, 214, 143, 0.4); }
+            50% { box-shadow: 0 0 0 8px rgba(0, 214, 143, 0); }
+        }
+        .sim-dot.error { background: var(--error); }
+        
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border-color);
+            margin-top: 2rem;
+        }
+        
+        @media (max-width: 900px) {
+            .grid-2, .grid-3, .metrics-grid { grid-template-columns: 1fr; }
+            .incident-selector { justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-effects">
+        <div class="circuit-pattern"></div>
+        <div class="glow-orb orb-1"></div>
+        <div class="glow-orb orb-2"></div>
+    </div>
+
+    <div class="container">
+        <header>
+            <div class="logo-container">
+                <div class="logo-icon">🔍</div>
+                <span class="logo-text">IncidentReasoner</span>
+            </div>
+            <p class="tagline">Autonomous SRE Agent with Toto-Powered Causal Reasoning for Incident Detection & Diagnosis</p>
+            <div class="powered-by">
+                ⚡ Powered by Toto Foundation Model
+            </div>
+        </header>
+
+        <div class="tabs">
+            <button class="tab active" data-tab="demo">🚨 Incident Simulation</button>
+            <button class="tab" data-tab="reasoning">🧠 Agent Reasoning</button>
+            <button class="tab" data-tab="causal">📊 Causal Analysis</button>
+            <button class="tab" data-tab="report">📋 Incident Report</button>
+        </div>
+
+        <!-- Demo Tab -->
+        <div id="demo" class="tab-content active">
+            <div class="sim-status">
+                <div class="sim-dot" id="simDot"></div>
+                <span id="simStatus">Select an incident scenario to begin simulation</span>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">🎭 Select Incident Scenario</span>
+                </div>
+                
+                <div class="incident-selector">
+                    <div class="incident-option" onclick="selectIncident('database')" id="opt-database">
+                        <div class="incident-icon">🗄️</div>
+                        <div class="incident-name">Database Cascade</div>
+                        <div class="incident-desc">Primary DB connection failure</div>
+                    </div>
+                    <div class="incident-option" onclick="selectIncident('memory')" id="opt-memory">
+                        <div class="incident-icon">💾</div>
+                        <div class="incident-name">Memory Exhaustion</div>
+                        <div class="incident-desc">OOM in payment service</div>
+                    </div>
+                    <div class="incident-option" onclick="selectIncident('network')" id="opt-network">
+                        <div class="incident-icon">🌐</div>
+                        <div class="incident-name">Network Partition</div>
+                        <div class="incident-desc">Cross-AZ connectivity loss</div>
+                    </div>
+                    <div class="incident-option" onclick="selectIncident('deploy')" id="opt-deploy">
+                        <div class="incident-icon">🚀</div>
+                        <div class="incident-name">Bad Deployment</div>
+                        <div class="incident-desc">Regression in v2.3.1</div>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <button class="btn" onclick="startSimulation()" id="startBtn" disabled>
+                        ▶️ Start Investigation
+                    </button>
+                    <button class="btn btn-secondary" onclick="resetSimulation()">
+                        🔄 Reset
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid-2" style="margin-top: 1.5rem;">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">📈 Toto Anomaly Detection</span>
+                        <span class="toto-badge">TSFM</span>
+                    </div>
+                    <div class="toto-panel">
+                        <div class="toto-header">
+                            <span>⚡ Real-time Metric Analysis</span>
+                        </div>
+                        <canvas id="totoChart" height="180"></canvas>
+                        <div class="metric-comparison">
+                            <div class="metric-box">
+                                <div class="metric-label">Toto Prediction</div>
+                                <div class="metric-value expected" id="predictedValue">--</div>
+                            </div>
+                            <div class="metric-box">
+                                <div class="metric-label">Actual Value</div>
+                                <div class="metric-value actual" id="actualValue">--</div>
+                            </div>
+                        </div>
+                        <div class="anomaly-score">
+                            <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.25rem;">Anomaly Score (σ)</div>
+                            <div style="font-size: 1.75rem; font-weight: 700; color: var(--error);" id="anomalyScore">--</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">🔗 Service Dependency Graph</span>
+                    </div>
+                    <div class="causal-graph" id="causalGraph">
+                        <div class="service-node" style="top: 30px; left: 50%; transform: translateX(-50%);" id="node-gateway">api-gateway</div>
+                        <div class="service-node" style="top: 100px; left: 25%;" id="node-order">order-service</div>
+                        <div class="service-node" style="top: 100px; left: 65%;" id="node-user">user-service</div>
+                        <div class="service-node" style="top: 180px; left: 15%;" id="node-payment">payment-service</div>
+                        <div class="service-node" style="top: 180px; left: 45%;" id="node-inventory">inventory-service</div>
+                        <div class="service-node" style="top: 180px; left: 75%;" id="node-notification">notification</div>
+                        <div class="service-node" style="top: 250px; left: 30%;" id="node-db">db-primary</div>
+                        <div class="service-node" style="top: 250px; left: 60%;" id="node-cache">redis-cache</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reasoning Tab -->
+        <div id="reasoning" class="tab-content">
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-card-value" id="stepsCount">0</div>
+                    <div class="metric-card-label">Reasoning Steps</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-card-value" id="hypothesesCount">0</div>
+                    <div class="metric-card-label">Hypotheses Tested</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-card-value" id="evidenceCount">0</div>
+                    <div class="metric-card-label">Evidence Collected</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-card-value" id="timeToRoot">--</div>
+                    <div class="metric-card-label">Time to Root Cause</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">🧠 ReAct Agent Reasoning Trace</span>
+                    <button class="btn btn-secondary" onclick="clearReasoning()" style="padding: 0.5rem 1rem; font-size: 0.8rem;">Clear</button>
+                </div>
+                <div class="reasoning-container" id="reasoningContainer">
+                    <div style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">🧠</div>
+                        <p>Start an incident simulation to see the agent's reasoning process</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Causal Tab -->
+        <div id="causal" class="tab-content">
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">🔬 Granger Causality Matrix</span>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem;">
+                            <thead>
+                                <tr>
+                                    <th style="padding: 0.5rem; text-align: left; color: var(--text-muted);">From → To</th>
+                                    <th style="padding: 0.5rem; text-align: center;">order</th>
+                                    <th style="padding: 0.5rem; text-align: center;">payment</th>
+                                    <th style="padding: 0.5rem; text-align: center;">db</th>
+                                    <th style="padding: 0.5rem; text-align: center;">gateway</th>
+                                </tr>
+                            </thead>
+                            <tbody id="causalMatrix">
+                                <tr>
+                                    <td style="padding: 0.5rem; font-weight: 500;">order</td>
+                                    <td style="padding: 0.5rem; text-align: center;">-</td>
+                                    <td style="padding: 0.5rem; text-align: center; color: var(--success);">0.82</td>
+                                    <td style="padding: 0.5rem; text-align: center; color: var(--warning);">0.45</td>
+                                    <td style="padding: 0.5rem; text-align: center;">0.12</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 0.5rem; font-weight: 500;">payment</td>
+                                    <td style="padding: 0.5rem; text-align: center;">0.23</td>
+                                    <td style="padding: 0.5rem; text-align: center;">-</td>
+                                    <td style="padding: 0.5rem; text-align: center; color: var(--error); font-weight: 600;">0.94</td>
+                                    <td style="padding: 0.5rem; text-align: center;">0.31</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 0.5rem; font-weight: 500;">db</td>
+                                    <td style="padding: 0.5rem; text-align: center;">0.08</td>
+                                    <td style="padding: 0.5rem; text-align: center;">0.15</td>
+                                    <td style="padding: 0.5rem; text-align: center;">-</td>
+                                    <td style="padding: 0.5rem; text-align: center;">0.05</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 0.5rem; font-weight: 500;">gateway</td>
+                                    <td style="padding: 0.5rem; text-align: center; color: var(--success);">0.78</td>
+                                    <td style="padding: 0.5rem; text-align: center; color: var(--success);">0.71</td>
+                                    <td style="padding: 0.5rem; text-align: center;">0.22</td>
+                                    <td style="padding: 0.5rem; text-align: center;">-</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div style="margin-top: 1rem; padding: 0.75rem; background: var(--bg-secondary); border-radius: 8px; font-size: 0.8rem; color: var(--text-secondary);">
+                        💡 High causality score (0.94) from <code style="color: var(--error);">db</code> → <code style="color: var(--warning);">payment</code> suggests database is upstream cause
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">📊 Root Cause Probability</span>
+                    </div>
+                    <div style="padding: 0.5rem 0;">
+                        <div style="margin-bottom: 1rem;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.4rem;">
+                                <span>🗄️ db-primary (connection pool)</span>
+                                <span style="font-weight: 600; color: var(--error);">94.2%</span>
+                            </div>
+                            <div style="height: 10px; background: var(--bg-primary); border-radius: 5px; overflow: hidden;">
+                                <div style="width: 94.2%; height: 100%; background: linear-gradient(90deg, var(--error), #ff8787); border-radius: 5px;"></div>
+                            </div>
+                        </div>
+                        <div style="margin-bottom: 1rem;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.4rem;">
+                                <span>💳 payment-service (timeout)</span>
+                                <span style="font-weight: 600; color: var(--warning);">78.5%</span>
+                            </div>
+                            <div style="height: 10px; background: var(--bg-primary); border-radius: 5px; overflow: hidden;">
+                                <div style="width: 78.5%; height: 100%; background: linear-gradient(90deg, var(--warning), #ffd43b); border-radius: 5px;"></div>
+                            </div>
+                        </div>
+                        <div style="margin-bottom: 1rem;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.4rem;">
+                                <span>📦 order-service (retry storm)</span>
+                                <span style="font-weight: 600;">45.3%</span>
+                            </div>
+                            <div style="height: 10px; background: var(--bg-primary); border-radius: 5px; overflow: hidden;">
+                                <div style="width: 45.3%; height: 100%; background: var(--text-muted); border-radius: 5px;"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.4rem;">
+                                <span>🌐 api-gateway (rate limit)</span>
+                                <span style="font-weight: 600;">12.1%</span>
+                            </div>
+                            <div style="height: 10px; background: var(--bg-primary); border-radius: 5px; overflow: hidden;">
+                                <div style="width: 12.1%; height: 100%; background: var(--text-muted); border-radius: 5px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Report Tab -->
+        <div id="report" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">📋 Generated Incident Report</span>
+                    <button class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.8rem;">📥 Export PDF</button>
+                </div>
+
+                <div class="report-section">
+                    <div class="report-title">🔴 Incident Summary</div>
+                    <div style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.7;">
+                        <strong>Incident ID:</strong> INC-2025-12-27-001<br>
+                        <strong>Severity:</strong> <span style="color: var(--error);">SEV-1 (Critical)</span><br>
+                        <strong>Duration:</strong> 14 minutes 32 seconds<br>
+                        <strong>Impact:</strong> 23.4% of requests failed, affecting ~12,400 users<br>
+                        <strong>Root Cause:</strong> Database connection pool exhaustion due to slow query lock
+                    </div>
+                </div>
+
+                <div class="report-section">
+                    <div class="report-title">⏱️ Timeline</div>
+                    <div class="timeline-item">
+                        <span class="timeline-time">14:32:15</span>
+                        <span class="timeline-event">🔴 Alert triggered: payment-service latency P99 > 5000ms</span>
+                    </div>
+                    <div class="timeline-item">
+                        <span class="timeline-time">14:32:18</span>
+                        <span class="timeline-event">🤖 IncidentReasoner initiated investigation</span>
+                    </div>
+                    <div class="timeline-item">
+                        <span class="timeline-time">14:32:45</span>
+                        <span class="timeline-event">🔍 Toto detected 4.2σ anomaly in db-primary connection metrics</span>
+                    </div>
+                    <div class="timeline-item">
+                        <span class="timeline-time">14:33:12</span>
+                        <span class="timeline-event">💡 Hypothesis generated: database connection pool exhaustion</span>
+                    </div>
+                    <div class="timeline-item">
+                        <span class="timeline-time">14:33:58</span>
+                        <span class="timeline-event">✅ Root cause confirmed via pg_stat_activity analysis</span>
+                    </div>
+                    <div class="timeline-item">
+                        <span class="timeline-time">14:34:30</span>
+                        <span class="timeline-event">🔧 Remediation: Killed blocking query, connections released</span>
+                    </div>
+                    <div class="timeline-item">
+                        <span class="timeline-time">14:46:47</span>
+                        <span class="timeline-event">✅ Services recovered, metrics normalized</span>
+                    </div>
+                </div>
+
+                <div class="report-section">
+                    <div class="report-title">🔧 Recommended Actions</div>
+                    <ul style="font-size: 0.9rem; color: var(--text-secondary); line-height: 2; list-style: none;">
+                        <li>✅ Implement query timeout at 30s (currently unlimited)</li>
+                        <li>✅ Add connection pool monitoring with proactive alerting at 80% capacity</li>
+                        <li>✅ Enable query plan analysis for queries > 10s</li>
+                        <li>⏳ Consider read replica for analytics queries</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            Built for Datadog AI Research (DAIR) · IncidentReasoner Demo · December 2025
+        </footer>
+    </div>
+
+    <script>
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab).classList.add('active');
+            });
+        });
+
+        let selectedIncident = null;
+        let simulationRunning = false;
+
+        function selectIncident(type) {
+            document.querySelectorAll('.incident-option').forEach(o => o.classList.remove('active'));
+            document.getElementById(`opt-${type}`).classList.add('active');
+            selectedIncident = type;
+            document.getElementById('startBtn').disabled = false;
+        }
+
+        function resetSimulation() {
+            simulationRunning = false;
+            document.getElementById('simDot').className = 'sim-dot';
+            document.getElementById('simStatus').textContent = 'Select an incident scenario to begin simulation';
+            document.querySelectorAll('.incident-option').forEach(o => o.classList.remove('active'));
+            document.querySelectorAll('.service-node').forEach(n => {
+                n.className = 'service-node';
+                n.style.cssText = n.style.cssText.split(';').filter(s => s.includes('top') || s.includes('left') || s.includes('transform')).join(';');
+            });
+            document.getElementById('predictedValue').textContent = '--';
+            document.getElementById('actualValue').textContent = '--';
+            document.getElementById('anomalyScore').textContent = '--';
+            document.getElementById('startBtn').disabled = true;
+            selectedIncident = null;
+        }
+
+        function startSimulation() {
+            if (!selectedIncident || simulationRunning) return;
+            simulationRunning = true;
+
+            document.getElementById('simDot').className = 'sim-dot running';
+            document.getElementById('simStatus').textContent = 'Investigation in progress...';
+
+            // Animate service nodes
+            const timeline = [
+                { delay: 500, node: 'gateway', status: 'degraded' },
+                { delay: 1000, node: 'order', status: 'degraded' },
+                { delay: 1500, node: 'payment', status: 'failed' },
+                { delay: 2000, node: 'db', status: 'root-cause' },
+            ];
+
+            timeline.forEach(({ delay, node, status }) => {
+                setTimeout(() => {
+                    document.getElementById(`node-${node}`).className = `service-node ${status}`;
+                }, delay);
+            });
+
+            // Animate Toto predictions
+            setTimeout(() => {
+                document.getElementById('predictedValue').textContent = '145ms';
+                document.getElementById('actualValue').textContent = '4,823ms';
+                document.getElementById('anomalyScore').textContent = '4.2σ';
+            }, 1500);
+
+            // Add reasoning steps
+            const steps = [
+                { type: 'thought', content: 'Alert received: payment-service latency exceeds SLO. Need to identify upstream dependencies and compare against Toto baseline predictions.' },
+                { type: 'action', content: 'Querying Toto model for expected latency distribution: <code>toto.predict(service="payment", horizon="1h")</code>' },
+                { type: 'observation', content: 'Toto prediction: 145ms (P50). Actual: 4,823ms. Anomaly score: 4.2σ — highly significant deviation.' },
+                { type: 'hypothesis', content: 'H1: Database connection issues causing payment-service timeout. Evidence: 0.94 Granger causality from db-primary.' },
+                { type: 'action', content: 'Querying database metrics: <code>SELECT * FROM pg_stat_activity WHERE state = \'active\'</code>' },
+                { type: 'observation', content: 'Found: 47/50 connections in use. Blocking query running for 847 seconds. Connection pool at 94% capacity.' },
+                { type: 'conclusion', content: '✅ Root cause confirmed: Long-running analytics query holding table lock, exhausting connection pool. Recommended action: Kill query PID 12847.' }
+            ];
+
+            const container = document.getElementById('reasoningContainer');
+            container.innerHTML = '';
+
+            let stepCount = 0, hypothesesCount = 0, evidenceCount = 0;
+
+            steps.forEach((step, i) => {
+                setTimeout(() => {
+                    const div = document.createElement('div');
+                    div.className = `reasoning-step step-${step.type}`;
+                    div.innerHTML = `
+                        <div class="step-header">
+                            <span class="step-badge badge-${step.type}">${step.type.toUpperCase()}</span>
+                            <span style="color: var(--text-muted); font-size: 0.75rem;">Step ${i + 1}</span>
+                        </div>
+                        <div class="step-content">${step.content}</div>
+                    `;
+                    container.appendChild(div);
+                    container.scrollTop = container.scrollHeight;
+
+                    stepCount++;
+                    if (step.type === 'hypothesis') hypothesesCount++;
+                    if (step.type === 'observation') evidenceCount++;
+
+                    document.getElementById('stepsCount').textContent = stepCount;
+                    document.getElementById('hypothesesCount').textContent = hypothesesCount;
+                    document.getElementById('evidenceCount').textContent = evidenceCount;
+
+                    if (step.type === 'conclusion') {
+                        document.getElementById('simDot').className = 'sim-dot';
+                        document.getElementById('simDot').style.background = 'var(--success)';
+                        document.getElementById('simStatus').textContent = 'Root cause identified!';
+                        document.getElementById('timeToRoot').textContent = '1m 43s';
+                    }
+                }, 2500 + i * 1200);
+            });
+        }
+
+        function clearReasoning() {
+            document.getElementById('reasoningContainer').innerHTML = `
+                <div style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">🧠</div>
+                    <p>Start an incident simulation to see the agent's reasoning process</p>
+                </div>
+            `;
+            document.getElementById('stepsCount').textContent = '0';
+            document.getElementById('hypothesesCount').textContent = '0';
+            document.getElementById('evidenceCount').textContent = '0';
+            document.getElementById('timeToRoot').textContent = '--';
+        }
+
+        // Draw simple chart placeholder
+        setTimeout(() => {
+            const canvas = document.getElementById('totoChart');
+            if (canvas) {
+                const ctx = canvas.getContext('2d');
+                const width = canvas.width = canvas.parentElement.offsetWidth - 40;
+                const height = canvas.height = 180;
+
+                ctx.fillStyle = '#111916';
+                ctx.fillRect(0, 0, width, height);
+
+                // Grid
+                ctx.strokeStyle = '#2d4a42';
+                ctx.lineWidth = 0.5;
+                for (let i = 0; i <= 4; i++) {
+                    const y = 10 + (height - 30) * (i / 4);
+                    ctx.beginPath();
+                    ctx.moveTo(0, y);
+                    ctx.lineTo(width, y);
+                    ctx.stroke();
+                }
+
+                // Predicted line (green)
+                ctx.strokeStyle = '#00d68f';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                const predicted = [120, 125, 130, 128, 135, 140, 145, 142, 148, 150];
+                predicted.forEach((v, i) => {
+                    const x = (i / (predicted.length - 1)) * width;
+                    const y = height - 20 - (v / 200) * (height - 40);
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+
+                // Actual line (red, diverging)
+                ctx.strokeStyle = '#ff6b6b';
+                ctx.beginPath();
+                const actual = [118, 122, 135, 180, 450, 1200, 2800, 4200, 4800, 4823];
+                actual.forEach((v, i) => {
+                    const x = (i / (actual.length - 1)) * width;
+                    const y = height - 20 - Math.min(v, 200) / 200 * (height - 40);
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+
+                // Labels
+                ctx.fillStyle = '#5d8073';
+                ctx.font = '10px Outfit';
+                ctx.fillText('Predicted', 10, 20);
+                ctx.fillStyle = '#ff6b6b';
+                ctx.fillText('Actual', 70, 20);
+            }
+        }, 300);
+    </script>
+</body>
+</html>
